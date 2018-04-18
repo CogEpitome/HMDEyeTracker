@@ -1,0 +1,38 @@
+/*========================================================================
+Product:    #HMDGazeAnalyzer
+Developer:  #Jonas Iacobi
+Company:    #KTH | SVRVIVE Studios
+Date:       #2018-04-18
+========================================================================*/
+
+This is a summary of the HMDEyeRecorder and how it uses eye tracking in VR.
+
+-Collecting Data:
+The TobiiPro SDK contains the prefab [VREyeTracker] which is used to collect a stream of eye tracking data from the Vive headset.
+By placing the prefab in the scene, this stream can be accessed via its public variable nextData.
+Each data point is stored as an object of the class IVRGazeData. To use this data for other scripts, 
+a middle man class should be created that keep the data and pass it to the classes that need it.
+In my profiler tests, the eye tracker's data collection peaked at 0.1% CPU and the HMDGazerecorder (which takes the data, converts in to a HMDGazeData object, and puts it in the list)
+used approx 0.2%-0.3% of CPU. This could most likely be further optimized.
+
+-Saving Data:
+The HMDGazeRecorder class takes this data and, depending on if it is set to record,
+either discards it or converts it into an object of the class HMDGazeData which is put in a list.
+At the end of recording that object is written to file as JSON.
+While collecting data is cheap, saving it to file takes a significant amount of time.
+Deciding how to do this is important for a smooth experience. Currently, the HMDGazeRecorder
+writes to file when recording ends.
+
+-Replaying Data:
+A simple class, HMDDataLoader, reads the data file and converts the JSON strings back to objects in a List.
+This list is then accessed by the HMDGazeReplayer.
+By using the time stamps of the HMDGazeData objects, they can be replayed in real time or frame by frame.
+Each data object has information on the origin of the gaze (i.e. the position of the player at that specific time),
+the direction of the gaze, and the distance to the object the gaze hit. By using those three values, a point in space where
+the gaze hit is calculated. Issues arise when there is no object to hit (e.g. skybox),
+where an alternative solution such as using a default distance or the last recorded distance is used.
+
+The Unity Camera namespace has a method called WorldToViewportPoint which returns a point on the viewport corresponding to a camera and direction vector.
+This is used to find the point on the screen that the user looked, by supplying the gaze direction and player camera.
+It is important to note that in VR, Screen.height and Screen.width do not necessarily correspond to the size of the view.
+Hence, the replayer accesses its canvas' RectTransform's dimensions instead for accurate playback.
